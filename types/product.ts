@@ -15,6 +15,8 @@ export type Product = {
   owner: string;
   /** ISO date string, e.g. "2026-09-15". */
   launchDate: string;
+  /** Path to a product photo under /public. */
+  image: string;
   checkpoints: Checkpoint[];
 };
 

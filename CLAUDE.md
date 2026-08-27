@@ -1,45 +1,86 @@
-# LaunchReady
+# LaunchReady — Engineering Context
 
-Next.js 15 App Router + TypeScript + Tailwind dashboard for tracking fictional product
-launch readiness. Built for a take-home assessment — keep it small and readable, not
-production-grade.
+Next.js 15 App Router take-home. No database — checkpoint state persists as a cookie diff.
+See `README.md` for the product/architecture explanation. This file is rules only.
 
-## Architecture
+## Domain
 
-- `data/products.ts` — static fictional product/checkpoint data. This is the only source
-  of truth for the *default* state; never mutate it at runtime.
-- `types/product.ts` — `Product` / `Checkpoint` / `RiskLevel` types.
-- `lib/evaluate-risk.ts` — pure functions: `calculateReadiness`, `evaluateRisk`,
-  `remainingTasks`. Readiness % and risk level are always *derived* from a checkpoint
-  list, never stored. If you add a UI element that shows readiness or risk, compute it
-  here — don't duplicate the math inline.
-- `lib/products.ts` — reads the `launchready_overrides` cookie and merges it over the
-  static data (`getProducts` / `getProduct`). This is how a checkpoint toggle persists
-  without a database.
-- `app/actions.ts` — the one server action (`toggleCheckpoint`). Writes to the same
-  cookie, then calls `revalidatePath` on `/` and `/products/[id]`.
-- `app/page.tsx` (homepage) and `app/products/[id]/page.tsx` (dynamic route) are both
-  Server Components — no `"use client"`, no client-side fetching.
-- `components/checkpoint-list.tsx` uses `<form action={toggleCheckpoint.bind(...)}>` per
-  row, so the toggle works without shipping a client component.
+- Checkpoint weights/criticality: defined once in `data/products.ts` (`CHECKPOINT_SPECS`).
+  Must sum to 100 — enforced at module load.
+- Critical: `inventory` (25%), `compliance` (15%). Either incomplete → risk forced HIGH.
+- Risk thresholds (`lib/evaluate-risk.ts` only): critical check first, then LOW ≥85%,
+  MEDIUM 60–84%, HIGH <60%.
+- Readiness/risk are derived, never stored. Don't add `readiness`/`risk` to `Product`.
 
-## Conventions
+## Persistence
 
-- No database. State beyond the static data lives only in the `launchready_overrides`
-  cookie as a diff (`{ productId: { checkpointId: completed } }`). Don't reach for
-  Prisma/Postgres/etc. for this project — that was an explicit assessment constraint.
-- Dates are date-only ISO strings (`"2026-09-15"`). Always format them through
-  `lib/format-date.ts` (`formatLaunchDate`), which forces UTC — parsing/formatting
-  without that produces an off-by-one-day bug in timezones behind UTC.
-- Keep Server Components as the default. Only add `"use client"` if something genuinely
-  needs browser-only interactivity that a form + server action can't express.
-- Risk thresholds and checkpoint weights live in exactly one place each
-  (`lib/evaluate-risk.ts` and `data/products.ts` respectively) — don't hardcode a
-  checkpoint id or a risk cutoff anywhere else.
+- `data/products.ts` is read-only at runtime.
+- Cookie (`launchready_overrides`) stores only `{ productId: { checkpointId: completed } }`
+  diffs. Validate its shape after parsing — it's client-controlled input.
+- `getProducts`/`getProduct`: cookie-aware, async. `getStaticProduct`: cookie-independent,
+  sync — use only where session state must never leak in (e.g. `generateMetadata`).
+- `lib/products.ts` imports `server-only` — never import it client-side.
+- Cookie write: `httpOnly`, `sameSite: "lax"`, 30-day `maxAge`, `secure` in prod only.
+
+## Server Action (`app/actions.ts`)
+
+- Validate `productId`/`checkpointId` before writing. Invalid → return typed
+  `ToggleCheckpointState` error, don't throw.
+- Anything after validation (cookie write, revalidate) throws naturally to `app/error.tsx`.
+- Revalidate `/` and `/products/[id]` on every write.
+
+## Client Components — exactly 4, don't add more casually
+
+- `components/sidebar.tsx` — mobile drawer open/close state + Escape/scroll-lock.
+- `components/category-select.tsx` — `<select>` change → `router.push`.
+- `components/checkpoint-toggle-form.tsx` — `useActionState` owns the `<form>`.
+- `app/error.tsx` — Next requires error boundaries to be client.
+
+Everything else stays a Server Component. Don't add `"use client"` for convenience.
+
+## URL Filter
+
+- `app/page.tsx` validates/filters `?category` server-side against a real whitelist
+  (`lib/category.ts`). `category-select.tsx` only edits the URL.
+- Preserve unrelated params. Remove `category` entirely for "All" (don't write `=all`).
+- `router.push(url, { scroll: false })` — default scroll-to-top would break the filter UX.
+
+## Metadata / Routing
+
+- `/products/[id]`: `params` is a `Promise` — await it.
+- `generateMetadata` uses `getStaticProduct`, never `getProduct`.
+- Unknown id → `notFound()` from the page component, not from `generateMetadata`.
+- `not-found.tsx` needs its own `metadata` export — Next won't fall back to
+  `generateMetadata`'s return value once `notFound()` fires.
+
+## Design / A11y
+
+- Colors: use tokens in `app/globals.css`, no arbitrary hex.
+- `--color-muted` / `--color-risk-medium-ink` are deliberately darkened for WCAG AA —
+  don't lighten without rechecking contrast.
+- Card readiness/category reveal on hover AND `group-focus-visible` — keep both.
+- Risk: always text label + color, never color alone.
+- `fill` images need real `sizes`; `priority` only on the hero image.
+- Checkpoint buttons need a unique `aria-label` spelling out the action.
+
+## Testing
+
+```bash
+npm run typecheck && npm run lint && npm test && npm run test:e2e && npm run build
+```
+
+- `vitest.config.mts` excludes `e2e/**`, aliases `server-only` to its no-op export, and
+  forces `esbuild` JSX (`oxc: false`) — don't remove these, tests break silently otherwise.
+- CI (`.github/workflows/ci.yml`): checkout → setup-node → `npm ci` → typecheck → lint →
+  test → build. No E2E in CI.
+
+## Don't add without a real requirement
+
+Database, auth, Redux/Zustand, internal API routes, service/repository layers, workflow
+engines, Docker/K8s/Terraform, runtime AI/LLM calls. Not "these are bad" — just unnecessary
+scope for this take-home.
 
 ## Commands
 
-- `npm run dev` — dev server
-- `npm run build` / `npm start` — production build/serve
-- `npm run lint` — ESLint (flat config, `next/core-web-vitals` + `next/typescript`)
-- `npx tsc --noEmit` — type-check only
+`npm run dev` · `npm run build` / `npm start` · `npm run lint` · `npm run typecheck` ·
+`npm test` · `npm run test:e2e`

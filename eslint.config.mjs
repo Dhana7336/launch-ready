@@ -14,6 +14,14 @@ const eslintConfig = [
   {
     ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
   },
+  {
+    rules: {
+      // Server actions used with useActionState must declare (prevState, formData) in
+      // their signature even when unused, so bind()'ing extra leading args still leaves a
+      // type that matches what useActionState expects. Standard "_" convention for that.
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    },
+  },
 ];
 
 export default eslintConfig;
