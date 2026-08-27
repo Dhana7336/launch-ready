@@ -21,7 +21,7 @@ See `README.md` for the product/architecture explanation. This file is rules onl
   (from before `completedAt` existed) is still valid input — normalize it to
   `{ completed, completedAt: null }`, don't drop it.
 - `completedAt` is set server-side only (`new Date().toISOString()` on complete, `null` on
-  reopen) — never trust a client-supplied value for it. Still never store readiness/risk.
+  reopen) — never trust a client-supplied value for it.
 - `getProducts`/`getProduct`: cookie-aware, async. `getStaticProduct`: cookie-independent,
   sync — use only where session state must never leak in (e.g. `generateMetadata`).
 - `lib/products.ts` imports `server-only` — never import it client-side.
@@ -65,8 +65,6 @@ Everything else stays a Server Component. Don't add `"use client"` for convenien
   don't lighten without rechecking contrast.
 - Card readiness/category reveal on hover AND `group-focus-visible` — keep both.
 - Risk: always text label + color, never color alone.
-- `fill` images need real `sizes`; `priority` only on the hero image.
-- Checkpoint buttons need a unique `aria-label` spelling out the action.
 
 ## Testing
 
@@ -93,8 +91,3 @@ npm run typecheck && npm run lint && npm test && npm run test:e2e && npm run bui
 Database, auth, Redux/Zustand, internal API routes, service/repository layers, workflow
 engines, Docker/K8s/Terraform, runtime AI/LLM calls. Not "these are bad" — just unnecessary
 scope for this take-home.
-
-## Commands
-
-`npm run dev` · `npm run build` / `npm start` · `npm run lint` · `npm run typecheck` ·
-`npm test` · `npm run test:e2e`
