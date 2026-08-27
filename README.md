@@ -341,5 +341,3 @@ keeping this README and CLAUDE.md accurate as all of that landed.
   for the assessment's time box.
 - Dates are date-only ISO strings (`"2026-09-15"`), formatted in UTC specifically to avoid
   an off-by-one-day bug in timezones behind UTC.
-
-Happy to walk through any part of this in more depth.
