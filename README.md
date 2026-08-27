@@ -325,7 +325,7 @@ actual context file used to guide the assistant while working in this repository
 
 ## Time Spent
 
-~4 hours. Core requirements (data model, server action, dynamic route) came first;
+4 hours. Core requirements (data model, server action, dynamic route) came first;
 the rest went into the Vitest/Playwright test suites and CI, an accessibility pass
 (contrast, keyboard parity, focus states), the editorial redesign, the mobile nav
 drawer, a checkpoint-completion-dates feature added after the initial build, and
