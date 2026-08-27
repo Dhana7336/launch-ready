@@ -3,13 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const NAV_ITEMS = [
-  { label: "Overview", href: "/", active: true },
-  { label: "Products", soon: true },
-  { label: "Vendors", soon: true },
-  { label: "Reports", soon: true },
-] as const;
-
 // Client Component: below md, the nav becomes an off-canvas drawer behind a hamburger
 // button, like a commercial e-commerce mobile header, instead of pushing full-height
 // content above the page. At md+ it's the same always-visible sticky column as before —
@@ -35,30 +28,13 @@ export function Sidebar() {
 
   const navLinks = (
     <nav className="flex flex-col gap-1">
-      {NAV_ITEMS.map((item) =>
-        "href" in item ? (
-          <Link
-            key={item.label}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            className={`rounded-md px-3 py-2 text-sm font-medium transition ${
-              item.active
-                ? "bg-sidebar-active text-sidebar-ink"
-                : "text-sidebar-muted hover:bg-sidebar-active/60 hover:text-sidebar-ink"
-            }`}
-          >
-            {item.label}
-          </Link>
-        ) : (
-          <div
-            key={item.label}
-            className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-sidebar-muted/60"
-          >
-            <span>{item.label}</span>
-            <span className="text-[10px] uppercase tracking-wide">Soon</span>
-          </div>
-        )
-      )}
+      <Link
+        href="/"
+        onClick={() => setOpen(false)}
+        className="rounded-md bg-sidebar-active px-3 py-2 text-sm font-medium text-sidebar-ink transition"
+      >
+        Overview
+      </Link>
     </nav>
   );
 
