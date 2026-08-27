@@ -325,10 +325,11 @@ actual context file used to guide the assistant while working in this repository
 
 ## Time Spent
 
-~2.5 hours, including planning the data model, implementation, fixing a timezone date bug
-found during manual browser testing (Playwright), and writing this README. Core
-requirements came first; additional time went into testing, accessibility, and
-framework-specific hardening (metadata edge cases, mobile navigation).
+~4 hours. Core requirements (data model, server action, dynamic route) came first;
+the rest went into the Vitest/Playwright test suites and CI, an accessibility pass
+(contrast, keyboard parity, focus states), the editorial redesign, the mobile nav
+drawer, a checkpoint-completion-dates feature added after the initial build, and
+keeping this README and CLAUDE.md accurate as all of that landed.
 
 ## Assumptions
 
