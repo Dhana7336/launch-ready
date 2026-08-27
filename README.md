@@ -5,6 +5,16 @@ which operational checkpoints (pricing, inventory, compliance, etc.) a product s
 before it ships, and turns that checklist into a readiness percentage and a risk level.
 Built with Next.js 15 (App Router), TypeScript, and Tailwind CSS as a take-home assessment.
 
+![Homepage — hero, at-a-glance stats](docs/screenshots/homepage-hero.png)
+*Homepage: hero and at-a-glance stats across the catalog.*
+
+![Homepage — featured spotlight and full product lineup](docs/screenshots/homepage-lineup.png)
+*Featured "next to launch" spotlight, then the full lineup with category filtering.*
+
+![Product detail — checkpoints with completion dates, one pending, High Risk](docs/screenshots/product-detail.png)
+*Product detail: readiness checklist with completion dates, and a High Risk product still
+missing a critical checkpoint.*
+
 ## Running Locally
 
 ```bash
