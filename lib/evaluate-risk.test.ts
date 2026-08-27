@@ -7,6 +7,7 @@ function checkpoint(overrides: Partial<Checkpoint> = {}): Checkpoint {
     id: "test",
     label: "Test checkpoint",
     completed: false,
+    completedAt: null,
     weight: 10,
     critical: false,
     ...overrides,

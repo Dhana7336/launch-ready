@@ -142,19 +142,23 @@ browser back/forward history for free.
 
 The base catalog (`data/products.ts`) is static and immutable at runtime. Toggling a
 checkpoint stores only the *diff* from its default value, in a cookie
-(`launchready_overrides`, 30-day expiry) as `{ [productId]: { [checkpointId]: completed } }`.
-Server Components read that cookie and merge it over the static data before computing
-readiness/risk. State is per-browser: clearing cookies or opening a private window resets
+(`launchready_overrides`, 30-day expiry) as
+`{ [productId]: { [checkpointId]: { completed, completedAt } } }`. `completedAt` is an ISO
+timestamp set server-side the moment a checkpoint is completed, and cleared to `null` when
+it's reopened — never a client-supplied value. Server Components read that cookie and merge
+it over the static data before computing readiness/risk (which never touch `completedAt` —
+only `completed`). State is per-browser: clearing cookies or opening a private window resets
 everything to the defaults.
 
 Cookie persistence was a deliberate scope decision for this take-home, not an external
 requirement — it avoids standing up database infrastructure for a single-user demo. The
 cookie is client-controlled input, so `lib/products.ts` validates its shape after parsing
-(not just that it's JSON, but that it actually matches `{ id: { id: boolean } }`) and drops
-anything malformed rather than crashing the page. `toggleCheckpoint` separately validates
-`productId`/`checkpointId` before ever writing to the cookie. Write attributes: `httpOnly`,
-`sameSite: "lax"`, `secure` in production only (so it still works over plain
-`http://localhost` in dev).
+(not just that it's JSON, but that it actually matches that shape) and drops anything
+malformed rather than crashing the page — including normalizing a legacy plain-boolean
+per-checkpoint value (from before `completedAt` existed) rather than dropping it outright.
+`toggleCheckpoint` separately validates `productId`/`checkpointId` before ever writing to
+the cookie. Write attributes: `httpOnly`, `sameSite: "lax"`, `secure` in production only (so
+it still works over plain `http://localhost` in dev).
 
 A real multi-user version would need server-side persistence with authenticated, per-user
 ownership, concurrency handling — two tabs toggling the same product near-simultaneously
@@ -197,15 +201,18 @@ npm run test:e2e # E2E tests (Playwright) — real browser against the real app
 
 ### Unit — Vitest
 
-50 tests across 6 files. Covers: every risk-tier boundary (84% vs. 85%, 59% vs. 60%) and
+56 tests across 7 files. Covers: every risk-tier boundary (84% vs. 85%, 59% vs. 60%) and
 the critical-checkpoint override (`lib/evaluate-risk.test.ts`); an exhaustive sweep of all
 64 completion combinations of the real checkpoint shape confirming readiness is always a
 whole integer; every product's checkpoint id set matching the spec exactly, not just a
-weight sum that happens to total 100 (`data/products.test.ts`); the cookie-parsing trust
-boundary — malformed shapes are dropped, not thrown (`lib/products.test.ts`); the category
-whitelist/fallback logic (`lib/category.test.ts`); `generateMetadata` producing the right
-title for a known product and a sensible fallback for an unknown one
-(`app/products/[id]/page.test.ts`); and `toggleCheckpoint` returning a typed error for
+weight sum that happens to total 100, plus every checkpoint's `completedAt` being
+consistent with its `completed` flag (`data/products.test.ts`); the cookie-parsing trust
+boundary — malformed shapes are dropped, not thrown, and a legacy plain-boolean checkpoint
+value is normalized rather than dropped (`lib/products.test.ts`); UTC-safe completion-date
+formatting (`lib/format-date.test.ts`); the category whitelist/fallback logic
+(`lib/category.test.ts`); `generateMetadata` producing the right title for a known product
+and a sensible fallback for an unknown one (`app/products/[id]/page.test.ts`); and
+`toggleCheckpoint` returning a typed error for
 invalid input instead of throwing (`app/actions.test.ts`).
 
 ### E2E — Playwright
@@ -215,8 +222,9 @@ actual server action round trip, actual cookie persistence, and actual browser h
 
 - Homepage loads, all 6 products render, category/readiness reveal on hover.
 - Clicking a product opens its detail page with the right data and `<title>`.
-- Marking a checkpoint complete shows the "Saving…" pending state, then readiness/risk
-  recompute on screen — and survives a reload.
+- Marking a checkpoint complete shows the "Saving…" pending state, then readiness/risk and
+  the completion date recompute on screen; reopening it clears the date back to "—"; both
+  the completed state and its date survive a reload.
 - An unknown product id renders the app's own themed 404, with the correct title.
 - Category filtering: a direct `?category=` URL filters server-side; an unrecognized value
   falls back to showing everything; changing category preserves unrelated params, removes

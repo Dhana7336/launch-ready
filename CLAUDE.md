@@ -15,8 +15,13 @@ See `README.md` for the product/architecture explanation. This file is rules onl
 ## Persistence
 
 - `data/products.ts` is read-only at runtime.
-- Cookie (`launchready_overrides`) stores only `{ productId: { checkpointId: completed } }`
-  diffs. Validate its shape after parsing — it's client-controlled input.
+- Cookie (`launchready_overrides`) stores only
+  `{ productId: { checkpointId: { completed, completedAt } } }` diffs. Validate its shape
+  after parsing — it's client-controlled input. A legacy plain-boolean per-checkpoint value
+  (from before `completedAt` existed) is still valid input — normalize it to
+  `{ completed, completedAt: null }`, don't drop it.
+- `completedAt` is set server-side only (`new Date().toISOString()` on complete, `null` on
+  reopen) — never trust a client-supplied value for it. Still never store readiness/risk.
 - `getProducts`/`getProduct`: cookie-aware, async. `getStaticProduct`: cookie-independent,
   sync — use only where session state must never leak in (e.g. `generateMetadata`).
 - `lib/products.ts` imports `server-only` — never import it client-side.

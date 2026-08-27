@@ -27,29 +27,60 @@ describe("parseOverrides", () => {
     expect(parseOverrides('{"spring-comfort-set": "garbage"}')).toEqual({});
   });
 
-  it("drops individual checkpoint entries that aren't booleans, keeping the valid ones", () => {
+  it("drops individual checkpoint entries with the wrong shape, keeping the valid ones", () => {
     const result = parseOverrides(
-      '{"spring-comfort-set": {"info": true, "pricing": "yes", "images": null}}'
+      '{"spring-comfort-set": {' +
+        '"info": {"completed": true, "completedAt": "2026-08-01T00:00:00.000Z"},' +
+        '"pricing": "yes",' +
+        '"images": null,' +
+        '"shipping": {"completed": "yes", "completedAt": null},' +
+        '"compliance": {"completed": true, "completedAt": 12345}' +
+        "}}"
     );
-    expect(result).toEqual({ "spring-comfort-set": { info: true } });
+    expect(result).toEqual({
+      "spring-comfort-set": {
+        info: { completed: true, completedAt: "2026-08-01T00:00:00.000Z" },
+      },
+    });
   });
 
   it("keeps different products' overrides independent", () => {
     const result = parseOverrides(
-      '{"product-a": {"x": true}, "product-b": {"y": false}}'
+      '{"product-a": {"x": {"completed": true, "completedAt": null}}, ' +
+        '"product-b": {"y": {"completed": false, "completedAt": null}}}'
     );
     expect(result).toEqual({
-      "product-a": { x: true },
-      "product-b": { y: false },
+      "product-a": { x: { completed: true, completedAt: null } },
+      "product-b": { y: { completed: false, completedAt: null } },
     });
   });
 
   it("round-trips a well-formed multi-product, multi-checkpoint payload", () => {
     const overrides = {
-      "spring-comfort-set": { shipping: true, compliance: false },
-      "luxury-sheet-set": { inventory: true },
+      "spring-comfort-set": {
+        shipping: { completed: true, completedAt: "2026-08-20T09:00:00.000Z" },
+        compliance: { completed: false, completedAt: null },
+      },
+      "luxury-sheet-set": {
+        inventory: { completed: true, completedAt: "2026-08-22T14:30:00.000Z" },
+      },
     };
     expect(parseOverrides(JSON.stringify(overrides))).toEqual(overrides);
+  });
+
+  // Cookies written before completedAt existed store a plain boolean per checkpoint.
+  // Those must keep working, not get silently dropped — normalized to completedAt: null
+  // since the real historical date was never recorded.
+  it("normalizes legacy plain-boolean checkpoint values for backward compatibility", () => {
+    const result = parseOverrides(
+      '{"spring-comfort-set": {"shipping": true, "compliance": false}}'
+    );
+    expect(result).toEqual({
+      "spring-comfort-set": {
+        shipping: { completed: true, completedAt: null },
+        compliance: { completed: false, completedAt: null },
+      },
+    });
   });
 });
 
@@ -62,8 +93,15 @@ function product(overrides: Partial<Product> = {}): Product {
     launchDate: "2026-01-01",
     image: "/images/products/test.jpg",
     checkpoints: [
-      { id: "info", label: "Info", weight: 50, critical: false, completed: false },
-      { id: "compliance", label: "Compliance", weight: 50, critical: true, completed: false },
+      { id: "info", label: "Info", weight: 50, critical: false, completed: false, completedAt: null },
+      {
+        id: "compliance",
+        label: "Compliance",
+        weight: 50,
+        critical: true,
+        completed: false,
+        completedAt: null,
+      },
     ],
     ...overrides,
   };
@@ -71,20 +109,33 @@ function product(overrides: Partial<Product> = {}): Product {
 
 describe("applyOverrides", () => {
   it("flips only the overridden checkpoint, leaving the rest at their default value", () => {
-    const [result] = applyOverrides([product()], { p1: { info: true } });
+    const [result] = applyOverrides([product()], {
+      p1: { info: { completed: true, completedAt: "2026-08-01T00:00:00.000Z" } },
+    });
     expect(result.checkpoints.find((c) => c.id === "info")?.completed).toBe(true);
     expect(result.checkpoints.find((c) => c.id === "compliance")?.completed).toBe(false);
   });
 
+  it("applies completedAt from the override, not just completed", () => {
+    const [result] = applyOverrides([product()], {
+      p1: { info: { completed: true, completedAt: "2026-08-24T10:00:00.000Z" } },
+    });
+    expect(result.checkpoints.find((c) => c.id === "info")?.completedAt).toBe(
+      "2026-08-24T10:00:00.000Z"
+    );
+  });
+
   it("returns the same product reference when it has no override entry", () => {
     const p = product();
-    const [result] = applyOverrides([p], { "some-other-product": { info: true } });
+    const [result] = applyOverrides([p], {
+      "some-other-product": { info: { completed: true, completedAt: null } },
+    });
     expect(result).toBe(p);
   });
 
   it("ignores an override key that doesn't match any real checkpoint id", () => {
     const [result] = applyOverrides([product()], {
-      p1: { "totally-fake-checkpoint": true },
+      p1: { "totally-fake-checkpoint": { completed: true, completedAt: null } },
     });
     expect(result.checkpoints).toHaveLength(2);
     expect(result.checkpoints.map((c) => c.completed)).toEqual([false, false]);
@@ -94,8 +145,8 @@ describe("applyOverrides", () => {
     const productA = product({ id: "a" });
     const productB = product({ id: "b" });
     const [resultA, resultB] = applyOverrides([productA, productB], {
-      a: { info: true },
-      b: { compliance: true },
+      a: { info: { completed: true, completedAt: null } },
+      b: { compliance: { completed: true, completedAt: null } },
     });
     expect(resultA.checkpoints.find((c) => c.id === "info")?.completed).toBe(true);
     expect(resultA.checkpoints.find((c) => c.id === "compliance")?.completed).toBe(false);
@@ -106,7 +157,12 @@ describe("applyOverrides", () => {
   it("does not mutate the input products array", () => {
     const p = product();
     const originalCompleted = p.checkpoints.map((c) => c.completed);
-    applyOverrides([p], { p1: { info: true, compliance: true } });
+    applyOverrides([p], {
+      p1: {
+        info: { completed: true, completedAt: null },
+        compliance: { completed: true, completedAt: null },
+      },
+    });
     expect(p.checkpoints.map((c) => c.completed)).toEqual(originalCompleted);
   });
 });

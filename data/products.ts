@@ -1,6 +1,8 @@
 import type { Product, Checkpoint } from "@/types/product";
 
-export type CheckpointSpec = Omit<Checkpoint, "completed">;
+// completed and completedAt are per-product-instance state, not part of the shared spec —
+// buildCheckpoints below fills both in per product.
+export type CheckpointSpec = Omit<Checkpoint, "completed" | "completedAt">;
 
 // Matches the six standard launch checkpoints and their weights/criticality. Every
 // product's checkpoint list is built from exactly this spec (see buildCheckpoints below),
@@ -41,11 +43,30 @@ if (duplicateIds.size > 0) {
   );
 }
 
+// Fictional, deterministic completion timestamps for checkpoints that are complete by
+// default — staggered a few days apart from a fixed reference date, in CHECKPOINT_SPECS
+// order, so completed checkpoints look chronologically plausible in the UI (info before
+// pricing before images, etc.) without hand-writing a separate literal date per checkpoint
+// per product. Deliberately not derived from Date.now() — this must stay the same on every
+// load, not drift with wall-clock time.
+const COMPLETION_SEED_DATE = "2026-08-01T09:00:00.000Z";
+const COMPLETION_STAGGER_DAYS = 3;
+
+function completedAtForSpecIndex(index: number): string {
+  const date = new Date(COMPLETION_SEED_DATE);
+  date.setUTCDate(date.getUTCDate() + index * COMPLETION_STAGGER_DAYS);
+  return date.toISOString();
+}
+
 function buildCheckpoints(incompleteIds: string[]): Checkpoint[] {
-  return CHECKPOINT_SPECS.map((spec) => ({
-    ...spec,
-    completed: !incompleteIds.includes(spec.id),
-  }));
+  return CHECKPOINT_SPECS.map((spec, index) => {
+    const completed = !incompleteIds.includes(spec.id);
+    return {
+      ...spec,
+      completed,
+      completedAt: completed ? completedAtForSpecIndex(index) : null,
+    };
+  });
 }
 
 // Fictional products for demo purposes only — not real BHF data.

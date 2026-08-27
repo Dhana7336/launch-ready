@@ -2,6 +2,8 @@ export type Checkpoint = {
   id: string;
   label: string;
   completed: boolean;
+  /** ISO timestamp of when this checkpoint was marked complete; null while incomplete. */
+  completedAt: string | null;
   /** Percentage of the readiness score this checkpoint contributes when complete. */
   weight: number;
   /** Critical checkpoints force HIGH risk when incomplete, regardless of overall readiness. */

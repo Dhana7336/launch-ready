@@ -45,11 +45,17 @@ export async function toggleCheckpoint(
   }
 
   const overrides = await readOverrides();
-  const currentlyCompleted = overrides[productId]?.[checkpointId] ?? checkpoint.completed;
+  const currentlyCompleted = overrides[productId]?.[checkpointId]?.completed ?? checkpoint.completed;
+  const nextCompleted = !currentlyCompleted;
 
   overrides[productId] = {
     ...overrides[productId],
-    [checkpointId]: !currentlyCompleted,
+    [checkpointId]: {
+      completed: nextCompleted,
+      // Set on the server, not trusted from the client — matches every other value this
+      // action writes (productId/checkpointId already validated above).
+      completedAt: nextCompleted ? new Date().toISOString() : null,
+    },
   };
 
   // Unexpected from here down: a cookie-store or cache-invalidation failure is a real

@@ -38,6 +38,22 @@ describe("PRODUCTS", () => {
     const ids = PRODUCTS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  it("gives every checkpoint a completedAt consistent with its completed flag", () => {
+    // completedAt must be a real (parseable) ISO string when completed, and exactly null
+    // when not — never the reverse, and never a value that fails to round-trip through Date.
+    for (const product of PRODUCTS) {
+      for (const checkpoint of product.checkpoints) {
+        const label = `${product.id}/${checkpoint.id}`;
+        if (checkpoint.completed) {
+          expect(checkpoint.completedAt, label).not.toBeNull();
+          expect(Number.isNaN(new Date(checkpoint.completedAt!).getTime()), label).toBe(false);
+        } else {
+          expect(checkpoint.completedAt, label).toBeNull();
+        }
+      }
+    }
+  });
 });
 
 describe("CHECKPOINT_SPECS", () => {

@@ -10,3 +10,16 @@ export function formatLaunchDate(
     timeZone: "UTC",
   });
 }
+
+// completedAt is a full ISO timestamp (from Date.toISOString()), not a date-only string
+// like launchDate — so, unlike formatLaunchDate, this doesn't need to synthesize a
+// T00:00:00Z suffix; the timestamp already carries a time. Still formatted in UTC so the
+// displayed date can't shift a day depending on the viewer's timezone.
+export function formatCompletedDate(isoTimestamp: string): string {
+  return new Date(isoTimestamp).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}

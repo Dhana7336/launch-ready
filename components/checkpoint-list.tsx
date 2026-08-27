@@ -1,4 +1,5 @@
 import type { Checkpoint } from "@/types/product";
+import { formatCompletedDate } from "@/lib/format-date";
 import { CheckpointToggleForm } from "./checkpoint-toggle-form";
 
 // Server Component: only the form (checkpoint-toggle-form.tsx) is a client component, and
@@ -34,7 +35,15 @@ export function CheckpointList({
               </div>
             </div>
           </div>
-          <CheckpointToggleForm productId={productId} checkpoint={checkpoint} />
+          <div className="flex flex-col items-end gap-1">
+            <CheckpointToggleForm productId={productId} checkpoint={checkpoint} />
+            {/* Always rendered (date or —) so toggling doesn't shift the row's height. */}
+            <span data-testid="checkpoint-completed-at" className="text-xs text-muted">
+              {checkpoint.completed && checkpoint.completedAt
+                ? formatCompletedDate(checkpoint.completedAt)
+                : "—"}
+            </span>
+          </div>
         </li>
       ))}
     </ul>
