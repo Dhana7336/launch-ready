@@ -69,7 +69,7 @@ Everything else stays a Server Component. Don't add `"use client"` for convenien
 ## Testing
 
 ```bash
-npm run typecheck && npm run lint && npm test && npm run test:e2e && npm run build
+npm run typecheck && npm run lint && npm run test:coverage && npm run test:e2e && npm run build
 ```
 
 - `vitest.config.mts` excludes `e2e/**`, aliases `server-only` to its no-op export, and
@@ -84,7 +84,15 @@ npm run typecheck && npm run lint && npm test && npm run test:e2e && npm run bui
   a build having happened first. Don't reintroduce a generated-type dependency in a file
   `typecheck` needs to pass before any build step.
 - CI (`.github/workflows/ci.yml`): checkout → setup-node → `npm ci` → typecheck → lint →
-  test → build. No E2E in CI.
+  `test:coverage` → build. No E2E in CI.
+- `npm run test:coverage` (`vitest run --coverage`, `@vitest/coverage-v8`): `components/**`
+  is excluded on purpose. A few components still get pulled into v8's raw instrumentation
+  because `app/products/[id]/page.tsx` imports them and `page.test.ts` imports that module
+  for `generateMetadata` — the component code itself never executes. That's a module-graph
+  artifact, not a real signal, so it's excluded rather than left to misread as undertested.
+  Real number as of this suite: ~76% lines on the files actually in scope (`lib/`, `data/`,
+  `app/actions.ts`, `app/products/[id]/page.tsx`) — component/page rendering is covered by
+  `e2e/`, which this tool can't see inside a real browser.
 
 ## Don't add without a real requirement
 

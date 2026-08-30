@@ -26,7 +26,7 @@ Open [http://localhost:3000](http://localhost:3000) (Node 20+). To verify a chan
 CI does:
 
 ```bash
-npm run typecheck && npm run lint && npm test && npm run test:e2e && npm run build
+npm run typecheck && npm run lint && npm run test:coverage && npm run test:e2e && npm run build
 ```
 
 ## Assessment requirements
@@ -148,8 +148,9 @@ handling (two tabs racing is a known gap here), and an audit trail.
 ## Testing
 
 ```bash
-npm test         # unit tests (Vitest)
-npm run test:e2e # E2E tests (Playwright)
+npm test            # unit tests (Vitest)
+npm run test:coverage # same suite, with a coverage report
+npm run test:e2e    # E2E tests (Playwright)
 ```
 
 **Unit** — 56 tests, 7 files:
@@ -158,6 +159,15 @@ npm run test:e2e # E2E tests (Playwright)
 - Cookie-parsing trust boundary, including legacy-format backward compatibility.
 - `generateMetadata`/`toggleCheckpoint` edge cases.
 
+**Coverage** (`@vitest/coverage-v8`) — ~76% lines on the files actually in scope for unit
+testing: `lib/`, `data/`, `app/actions.ts`, `app/products/[id]/page.tsx`. `components/**` is
+excluded on purpose, not just uncovered — no component has a unit test; they're exercised by
+the E2E suite below, in a real browser, which v8's instrumentation can't see into. The
+remaining gaps inside the in-scope files are legitimate, not oversights: the cookie-reading
+functions in `lib/products.ts` (`getProducts`/`getProduct`/`readOverrides`) need a real
+request scope and are covered by E2E instead; the two `throw` branches in `data/products.ts`
+are invariant guards that never fire against valid data.
+
 **E2E** — 13 tests, 5 specs:
 - Homepage → product navigation.
 - Checkpoint toggle round trip: pending state, readiness/risk, completion date, reload.
@@ -165,7 +175,7 @@ npm run test:e2e # E2E tests (Playwright)
 - Mobile nav drawer, and the themed 404.
 
 CI (`.github/workflows/ci.yml`, every push/PR): `checkout → setup-node → npm ci →
-typecheck → lint → test → build`. E2E isn't wired in, to keep the workflow fast.
+typecheck → lint → test:coverage → build`. E2E isn't wired in, to keep the workflow fast.
 
 ## Project Structure
 
